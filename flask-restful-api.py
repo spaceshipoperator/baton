@@ -5,6 +5,7 @@
 # https://flask-restful.readthedocs.io/en/latest/quickstart.html
 # refactored and repurposed
 
+import json
 from flask import Flask
 from flask_restful import reqparse, abort, Api, Resource
 
@@ -20,6 +21,12 @@ DATA = {
 def abort_if_data_doesnt_exist(data_id):
     if data_id not in DATA:
         abort(404, message="Data {} doesn't exist".format(data_id))
+
+
+def abort_if_items_is_not_list(items):
+    if not isinstance(json.loads(items), list):
+        abort(404, message="Items {} is not a list".format(items))
+
 
 parser = reqparse.RequestParser()
 parser.add_argument('items')
@@ -38,8 +45,15 @@ class Data(Resource):
         return '', 204
 
     def put(self, data_id):
+        abort_if_data_doesnt_exist(data_id)
         args = parser.parse_args()
-        items = {'items': args['items']}
+        abort_if_items_is_not_list(args['items'])
+
+        stored_items = list(DATA[data_id]['items'])
+        new_items = json.loads(args['items'])
+
+        items = {'items': str([*stored_items, *new_items]) }
+
         DATA[data_id] = items
         return items, 201
 
@@ -54,6 +68,7 @@ class DataList(Resource):
         args = parser.parse_args()
         data_id = int(max(DATA.keys()).lstrip('data')) + 1
         data_id = 'data%i' % data_id
+        abort_if_items_is_not_list(args['items'])
         DATA[data_id] = {'items': args['items']}
         return DATA[data_id], 201
 
